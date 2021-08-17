@@ -14,29 +14,44 @@ AStar::AStar()
         { -1, -1 }, { 1, 1 }, { -1, 1 }, { 1, -1 }
     };
     walls_ = {};
+
+    mat = nullptr;
+}
+
+AStar::~AStar()
+{
+    mat->release();
+    delete mat;
 }
 
 void AStar::SetWorldSize(Vec2 size)
 {
     worldSize_ = size;
+    _DrawWorld();
+}
+
+void AStar::SetDiagonal(bool enable)
+{
+    direction_ = (enable ? 8 : 4);
 }
 
 void AStar::SetWalls(CoordinateList walls)
 {
     walls_ = walls;
+    _DrawWall();
 }
 
 CoordinateList AStar::FindPath(Vec2 source, Vec2 target)
 {
-    NodeArr openSet; //open±í
-    NodeArr closedSet; //close±í
+    NodeArr openSet; //openè¡¨
+    NodeArr closedSet; //closeè¡¨
     Node* nodePtr = nullptr;
 
-    // Ìí¼ÓÆğµã
+    // æ·»åŠ èµ·ç‚¹
     openSet.emplace_back(new Node(source));
 
     while (!openSet.empty()) {
-        // »ñÈ¡open±íÖĞ×Ü³É±¾×îĞ¡µÄ½áµã
+        // è·å–openè¡¨ä¸­æ€»æˆæœ¬æœ€å°çš„ç»“ç‚¹
         auto node = openSet.begin();
         nodePtr = *node;
         for (auto item = openSet.begin(); item != openSet.end(); ++item) {
@@ -46,33 +61,33 @@ CoordinateList AStar::FindPath(Vec2 source, Vec2 target)
             }
         }
 
-        // ÅĞ¶ÏÊÇ·ñµ½´ïÄ¿±ê
+        // åˆ¤æ–­æ˜¯å¦åˆ°è¾¾ç›®æ ‡
         if (nodePtr->coordinate_ == target) {
             break;
         }
 
-        // Ìí¼Óµ½close±íÖĞ£¬´Óopen±íÖĞÒÆ³ı
+        // æ·»åŠ åˆ°closeè¡¨ä¸­ï¼Œä»openè¡¨ä¸­ç§»é™¤
         closedSet.emplace_back(nodePtr);
         openSet.erase(node);
 
-        // ÒÀ´ÎÅĞ¶Ïµ±Ç°½áµãµÄ¸÷¸ö·½Î»
+        // ä¾æ¬¡åˆ¤æ–­å½“å‰ç»“ç‚¹çš„å„ä¸ªæ–¹ä½
         for (int i = 0; i < direction_; ++i) {
             Vec2 findCoordinate(nodePtr->coordinate_ + directions_[i]);
 
-            // ÅĞ¶ÁÊÇ·ñ³¬³öÊÀ½ç·¶Î§ ÊÇ·ñ²»¿É´ïµ½(½áµãÎ»ÖÃÊÇÇ½Ìå)
+            // åˆ¤è¯»æ˜¯å¦è¶…å‡ºä¸–ç•ŒèŒƒå›´ æ˜¯å¦ä¸å¯è¾¾åˆ°(ç»“ç‚¹ä½ç½®æ˜¯å¢™ä½“)
             if (IfCollision(findCoordinate) || FindNodeInArr(closedSet, findCoordinate)) {
                 continue;
             }
 
-            // ÅĞ¶ÏËÑË÷½áµãÊÇ·ñÒÑ´æÔÚÓÚopen±íÖĞ
+            // åˆ¤æ–­æœç´¢ç»“ç‚¹æ˜¯å¦å·²å­˜åœ¨äºopenè¡¨ä¸­
             int gCost = nodePtr->G + ((i < 4) ? 10 : 14);
             Node* findNode = FindNodeInArr(openSet, findCoordinate);
-            if (nullptr == findNode) { //²»´æÔÚ£¬Ìí¼ÓÌí¼ÓĞÂµÄ½áµã
+            if (nullptr == findNode) { //ä¸å­˜åœ¨ï¼Œæ·»åŠ æ·»åŠ æ–°çš„ç»“ç‚¹
                 findNode = new Node(findCoordinate, nodePtr);
                 findNode->G = gCost;
                 findNode->H = Manhattan(findNode->coordinate_, target);
                 openSet.emplace_back(findNode);
-            } else { //´æÔÚ£¬ÅĞ¶ÏÊÇ·ñĞèÒª¸üĞÂ
+            } else { //å­˜åœ¨ï¼Œåˆ¤æ–­æ˜¯å¦éœ€è¦æ›´æ–°
                 if (gCost < findNode->G) {
                     findNode->parent_ = nodePtr;
                     findNode->G = gCost;
@@ -81,16 +96,20 @@ CoordinateList AStar::FindPath(Vec2 source, Vec2 target)
         }
     }
 
-    // Éú³É×îÖÕÂ·¾¶
+    // ç”Ÿæˆæœ€ç»ˆè·¯å¾„
     CoordinateList path;
     while (nodePtr != nullptr) {
         path.emplace_back(nodePtr->coordinate_);
         nodePtr = nodePtr->parent_;
     }
 
-    // ÊÍ·ÅÑ°Â·½áµã
+    // é‡Šæ”¾å¯»è·¯ç»“ç‚¹
     ReleaseNodes(openSet);
     ReleaseNodes(closedSet);
+
+    _DrawPath(path);
+    _DrawSource(source);
+    _DrawTarget(target);
 
     return path;
 }
@@ -125,5 +144,57 @@ void AStar::ReleaseNodes(NodeArr& arr)
     for (auto i = arr.begin(); i != arr.end();) {
         delete *i;
         i = arr.erase(i);
+    }
+}
+
+void AStar::ShowMap()
+{
+    if (mat && !mat->empty()) {
+        int width = worldSize_.x;
+        int height = worldSize_.y;
+
+        for (int i = 0; i <= width; ++i) {
+            cv::line(*mat, cv::Point(i * GRID_SIZE, 0), cv::Point(i * GRID_SIZE, height * GRID_SIZE), SCALAR_COLOR_GRID, 1);
+        }
+
+        for (int i = 0; i <= height; ++i) {
+            cv::line(*mat, cv::Point(0, i * GRID_SIZE), cv::Point(width * GRID_SIZE, i * GRID_SIZE), SCALAR_COLOR_GRID, 1);
+        }
+
+        cv::imshow("ImputImage", *mat);
+        cv::waitKey(0);
+    }
+}
+
+void AStar::_DrawWorld()
+{
+    mat = new cv::Mat(worldSize_.x * GRID_SIZE, worldSize_.y * GRID_SIZE, CV_8UC3, SCALAR_COLOR_BACKGROUND);
+}
+
+void AStar::_DrawWall()
+{
+    for (auto wall : walls_) {
+        cv::rectangle(*mat, cv::Point(wall.x * GRID_SIZE, wall.y * GRID_SIZE), 
+                      cv::Point((wall.x + 1) * GRID_SIZE, (wall.y + 1) * GRID_SIZE), SCALAR_COLOR_WALL, -1);
+    }
+}
+
+void AStar::_DrawSource(Vec2 source)
+{
+    cv::rectangle(*mat, cv::Point(source.x * GRID_SIZE, source.y * GRID_SIZE), 
+                  cv::Point((source.x + 1) * GRID_SIZE, (source.y + 1) * GRID_SIZE), SCALAR_COLOR_SOURCE, -1);
+}
+
+void AStar::_DrawTarget(Vec2 target)
+{
+    cv::rectangle(*mat, cv::Point(target.x * GRID_SIZE, target.y * GRID_SIZE), 
+                  cv::Point((target.x + 1) * GRID_SIZE, (target.y + 1) * GRID_SIZE), SCALAR_COLOR_TARGET, -1);
+}
+
+void AStar::_DrawPath(CoordinateList path)
+{
+    for (auto i : path) {
+        cv::rectangle(*mat, cv::Point(i.x * GRID_SIZE, i.y * GRID_SIZE),
+                      cv::Point((i.x + 1) * GRID_SIZE, (i.y + 1) * GRID_SIZE), SCALAR_COLOR_PATH, -1);
     }
 }
