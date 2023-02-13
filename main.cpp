@@ -1,17 +1,19 @@
-Ôªø#include <iostream>
+#include <iostream>
 #include "source/AStar.h"
 
 using namespace std;
 
 int main()
 {
-    AStar aStaer;
-    aStaer.SetWorldSize({ 7, 7 });
-    std::vector<Vec2> walls = { { 2, 3 }, { 3, 3 }, { 4, 3 } };
-    aStaer.SetWalls(walls);
-    auto path = aStaer.FindPath({ 3, 1 }, { 3, 5 });
-
-    for (auto &i : path) {
-        std::cout << i.x << " " << i.y << "\n";
-    }
+    AStar aStar;
+    aStar.SetWorldSize({ 9, 9 }); //…Ë÷√ ¿ΩÁ¥Û–°
+    aStar.SetDiagonal(false); //…Ë÷√»°œ˚∂‘Ω«œﬂ∑ΩœÚ
+    std::vector<Vec2> walls = { { 2, 3 }, { 3, 3 }, { 3, 4 }, { 3, 5 },
+                                { 3, 6 }, { 4, 6 }, { 5, 1 }, { 5, 2 },
+                                { 5, 3 }, { 5, 6 }, { 5, 7 }, { 6, 0 },
+                                { 6, 1 }, { 6, 2 }, { 7, 4 }, { 8, 4 } };
+    aStar.SetWalls(walls); //…Ë÷√«ΩÃÂ
+    auto path = aStar.FindPath({ 1, 7 }, { 7, 1 }); //—∞¬∑
+    aStar.ShowMap(); //ø… ”ªØ
+    return 0;
 }
